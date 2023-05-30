@@ -21,6 +21,16 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Container(
         color: Colors.white,
-        child: FlutterLogo(size: MediaQuery.of(context).size.height));
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/images/logo.png',
+            ),
+            CircularProgressIndicator(
+              color: Color(0xFFE78200),
+            )
+          ],
+        ));
   }
 }
