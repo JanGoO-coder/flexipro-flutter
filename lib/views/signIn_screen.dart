@@ -1,12 +1,22 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flexipro/views/signUp_screen.dart';
 import 'package:flutter/material.dart';
-import './signUp_screen.dart';
-import './forgotPassword_screen.dart';
-import './user/userDashboard_screen.dart';
-import './companyAdmin/CompAdminDashboard_screen.dart';
+import 'package:get/get.dart';
+import 'package:dio/dio.dart';
 
-class SignInScreen extends StatelessWidget {
+import './companyAdmin/CompDashboard_screen.dart';
+import './employee/employeeDashboard_screen.dart';
+
+class SignInScreen extends StatefulWidget {
+  @override
+  State<SignInScreen> createState() => _SignInScreenState();
+}
+
+class _SignInScreenState extends State<SignInScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  String baseUrl = 'http://10.0.2.2:8000/api/auth/login';
 
   @override
   Widget build(BuildContext context) {
@@ -14,17 +24,6 @@ class SignInScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Sign In'),
         backgroundColor: Color(0xFF009CBF),
-        actions: [
-          IconButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => CompanyAdminDashboard()),
-                );
-              },
-              icon: Icon(Icons.dashboard))
-        ],
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -32,7 +31,6 @@ class SignInScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Image.asset('assets/images/logo.png'),
               TextField(
                 controller: emailController,
                 decoration: InputDecoration(
@@ -76,30 +74,11 @@ class SignInScreen extends StatelessWidget {
                   suffixIcon: Icon(Icons.visibility),
                 ),
               ),
-              Align(
-                alignment: Alignment.topLeft,
-                child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => ForgotPasswordScreen()),
-                      );
-                    },
-                    child: Text('Forget Password')),
-              ),
               SizedBox(height: 24.0),
               Container(
-                width: double
-                    .maxFinite, // Set the width to occupy the available space
+                width: double.maxFinite,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => UserDashboardScreen()),
-                    );
-                  },
+                  onPressed: signIn,
                   style: ElevatedButton.styleFrom(
                     primary: Color(0xFFE78200),
                     onPrimary: Colors.white,
@@ -110,24 +89,102 @@ class SignInScreen extends StatelessWidget {
                   child: Text('Sign In'),
                 ),
               ),
-              Row(
-                children: [
-                  Text('Dont have an account ?'),
-                  TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => SignUpScreen()),
-                        );
-                      },
-                      child: Text("SignUp")),
-                ],
+              SizedBox(height: 16.0),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => SignUpScreen()),
+                  );
+                },
+                child: Text('Create an Account'),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> signIn() async {
+    final email = emailController.text;
+    final password = passwordController.text;
+
+    try {
+      final response = await http.post(
+        Uri.parse(baseUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'password': password}),
+      );
+
+      final responseData = json.decode(response.body);
+
+      if (response.statusCode == 500) {
+        // Login successful
+        final userRole = responseData['user_role'];
+        navigateToDashboard(userRole);
+      } else {
+        // Login failed
+        final errorMessage = responseData['message'];
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Login Error'),
+            content: Text(errorMessage),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (error) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('An error occurred'),
+          content: Text('Failed to sign in. Please try again.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void navigateToDashboard(String userRole) {
+    switch (userRole) {
+      case 'company':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => CompanyAdminDashboard()),
+        );
+        break;
+      case 'employee':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => EmployeeDashboardScreen()),
+        );
+        break;
+      default:
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Role Error'),
+            content: Text('Invalid user role received from the server.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text('OK'),
+              ),
+            ],
+          ),
+        );
+    }
   }
 }

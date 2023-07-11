@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-class UserDashboardScreen extends StatefulWidget {
+class EmployeeDashboardScreen extends StatefulWidget {
   @override
-  State<UserDashboardScreen> createState() => _UserDashboardScreenState();
+  State<EmployeeDashboardScreen> createState() =>
+      _EmployeeDashboardScreenState();
 }
 
-class _UserDashboardScreenState extends State<UserDashboardScreen> {
+class _EmployeeDashboardScreenState extends State<EmployeeDashboardScreen> {
   String _searchQuery = '';
   bool _isVisible = true;
   ScrollController _controller;
