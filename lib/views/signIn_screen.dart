@@ -1,10 +1,10 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flexipro/views/signUp_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:dio/dio.dart';
-
+import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decode/jwt_decode.dart';
 import './companyAdmin/CompDashboard_screen.dart';
 import './employee/employeeDashboard_screen.dart';
 
@@ -14,8 +14,8 @@ class SignInScreen extends StatefulWidget {
 }
 
 class _SignInScreenState extends State<SignInScreen> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  TextEditingController emailController = TextEditingController();
+  TextEditingController passwordController = TextEditingController();
   String baseUrl = 'http://10.0.2.2:8000/api/auth/login';
 
   @override
@@ -78,7 +78,19 @@ class _SignInScreenState extends State<SignInScreen> {
               Container(
                 width: double.maxFinite,
                 child: ElevatedButton(
-                  onPressed: signIn,
+                  onPressed: () {
+                    if (emailController.text.isEmpty &&
+                        emailController.text.isEmail) {
+                      showMessage('Email is empty or incorrect');
+                      return;
+                    } else if (passwordController.text.isEmpty &&
+                        passwordController.text.length >= 8) {
+                      showMessage('Please enter correct password');
+                      return;
+                    } else {
+                      postData();
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     primary: Color(0xFFE78200),
                     onPrimary: Colors.white,
@@ -106,85 +118,55 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  Future<void> signIn() async {
-    final email = emailController.text;
-    final password = passwordController.text;
-
+  void postData() async {
     try {
-      final response = await http.post(
-        Uri.parse(baseUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'email': email, 'password': password}),
+      var body = {
+        'email': emailController.text,
+        'password': passwordController.text,
+      };
+
+      final response = await Dio().post(
+        baseUrl,
+        data: body,
       );
+      if (response.statusCode == 200) {
+        final token = response.data['token'];
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        final tokePref = prefs.setString('token', token);
+        Map<String, dynamic> decodedToken = Jwt.parseJwt(token);
 
-      final responseData = json.decode(response.body);
-
-      if (response.statusCode == 500) {
-        // Login successful
-        final userRole = responseData['user_role'];
-        navigateToDashboard(userRole);
+        final role = decodedToken['user_role'];
+        final rolePref = prefs.setString('role', role);
+        if (decodedToken['user_role'] == 'employee') {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => EmployeeDashboardScreen()),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => CompanyAdminDashboard()),
+          );
+        }
+        ;
       } else {
-        // Login failed
-        final errorMessage = responseData['message'];
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text('Login Error'),
-            content: Text(errorMessage),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text('OK'),
-              ),
-            ],
-          ),
-        );
+        print('reject');
+        return;
       }
-    } catch (error) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('An error occurred'),
-          content: Text('Failed to sign in. Please try again.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text('OK'),
-            ),
-          ],
-        ),
-      );
+    } catch (e) {
+      showMessage('Undefined user');
     }
   }
 
-  void navigateToDashboard(String userRole) {
-    switch (userRole) {
-      case 'company':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => CompanyAdminDashboard()),
-        );
-        break;
-      case 'employee':
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => EmployeeDashboardScreen()),
-        );
-        break;
-      default:
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text('Role Error'),
-            content: Text('Invalid user role received from the server.'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text('OK'),
-              ),
-            ],
-          ),
-        );
-    }
+  showMessage(msg) {
+    Fluttertoast.cancel();
+    Fluttertoast.showToast(
+        msg: msg,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.CENTER,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0);
   }
 }

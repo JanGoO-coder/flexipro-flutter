@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
 import 'package:flexipro/views/signIn_screen.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +25,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String _selectedOption;
 
   String baseUrl = 'http://10.0.2.2:8000/api/auth/register';
+  bool _validate = false;
 
   // @override
   // void initState() {
@@ -45,7 +47,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Image.asset('assets/images/logo.png'),
-              TextField(
+              TextFormField(
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return showMessage('Please enter some text');
+                  }
+                  return null;
+                },
                 controller: firstController,
                 decoration: InputDecoration(
                   labelText: 'First Name',
@@ -184,7 +192,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     .maxFinite, // Set the width to occupy the available space
                 child: ElevatedButton(
                   onPressed: () {
-                    postData();
+                    if (firstController.text.isEmpty) {
+                      showMessage('Please Enter first name');
+                      return null;
+                    } else if (lastController.text.isEmpty) {
+                      showMessage('Please Enter Last Name');
+                      return null;
+                    } else if (emailController.text.isEmpty) {
+                      showMessage('Please Enter Correct Email');
+                      return null;
+                    } else if (passwordController.text !=
+                        confirmController.text) {
+                      showMessage('Password and confirm Password are not same');
+                      return null;
+                    } else if (passwordController.text.isEmpty) {
+                      showMessage('Password field is Empty');
+                      return null;
+                    } else {
+                      postData();
+                    }
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => SignInScreen()),
@@ -222,18 +249,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
         baseUrl,
         data: body,
       );
+      if (response.statusCode == 200) {
+        print('sucessfull');
+        final token = response.data['response']['token'];
+        final userRole = response.data['response']['user']['user_role'];
 
-      if (response.statusCode == 500) {
-        // Handle successful response
-        print('Request Sucessfull with status code: ${response.statusCode}');
-        // print(response.data);
+        // final extractedData = json.decode(response.data) as Map<String, String>;
       } else {
-        // Handle error response
-        print('Request failed with status code: ${response.statusCode}');
+        print('reject');
+        return;
       }
-    } catch (error) {
-      // Handle Dio errors
-      print('Error: $error');
-    }
+    } catch (e) {}
+  }
+
+  showMessage(msg) {
+    Fluttertoast.cancel();
+    Fluttertoast.showToast(
+        msg: msg,
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.CENTER,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0);
   }
 }
